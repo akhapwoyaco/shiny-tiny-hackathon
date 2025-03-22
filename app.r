@@ -9,9 +9,9 @@ library(ggplot2)
 library(plotly)
 
 # Load modules
-source("disclaimer-module.r")
-source("report-table-module.r")
-source("report-plot-module.r")
+source("modules/disclaimer-module.r")
+source("modules/report-table-module.r")
+source("modules/report-plot-module.r")
 
 # Define UI
 ui <- fluidPage(
