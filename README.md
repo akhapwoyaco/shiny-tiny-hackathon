@@ -109,8 +109,8 @@ This Shiny application mimics the FDA's FAERS Public Dashboard, which displays i
 
 1. Clone this repository:
    ```
-   git clone https://github.com/akhapwoyaco/faers-dashboard.git
-   cd faers-dashboard
+   git clone https://github.com/akhapwoyaco/shiny-tiny-hackathon.git
+   cd shiny-tiny-hackathon
    ```
 
 2. Install the required R packages:
@@ -129,16 +129,24 @@ This Shiny application mimics the FDA's FAERS Public Dashboard, which displays i
 faers-dashboard/
 │
 ├── app.R                 # Main application file
+├── global.R              # global function logger
 ├── www/                  # Static resources
 │   └── fda-logo.png      # FDA logo image
 │
 ├── modules/              # Shiny modules
+│   ├── data_loader_module.R  # load the datasets
+│   ├── less_module.R         # format total-summary output
 │   ├── disclaimer_module.R     # Handles the disclaimer popup
 │   ├── report_table_module.R   # Manages the data table
 │   └── report_plot_module.R    # Creates the stacked bar chart
 │
 ├── data/                 # Data files (not included in this repo)
-│   └── faers_data.csv    # Sample data file (you'll need to provide this)
+│   ├── age_group.xlsx
+│   ├── report_seriousness.xlsx
+│   ├── report_type.xlsx
+│   ├── reporter.xlsx
+│   ├── reporter_region.xlsx
+│   └── sex.xlsx
 │
 └── tests/                # Unit tests
     └── testthat/
@@ -162,11 +170,6 @@ The application is designed to work with a CSV file containing FAERS data. The e
 - Year
 - ReportType
 - Count
-- TotalReports
-- SeriousReports 
-- DeathReports
-
-You can replace the mock data in the app with actual FAERS data by obtaining it from the FDA website.
 
 ## Testing
 

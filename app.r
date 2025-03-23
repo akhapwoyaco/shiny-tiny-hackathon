@@ -18,7 +18,7 @@ source("modules/disclaimer-module.r")
 source("modules/report-table-module.r")
 source("modules/report-plot-module.r")
 source("modules/data_loader_module.R")
-source("less_module.R")
+source("modules/less_module.R")
 source("global.R")
 
 # Define UI
