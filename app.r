@@ -7,11 +7,19 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(plotly)
+library(tools)
+
+#
+
+#
 
 # Load modules
 source("modules/disclaimer-module.r")
 source("modules/report-table-module.r")
 source("modules/report-plot-module.r")
+source("modules/data_loader_module.R")
+source("less_module.R")
+source("global.R")
 
 # Define UI
 ui <- fluidPage(
@@ -19,8 +27,8 @@ ui <- fluidPage(
   tags$head(
     tags$style(HTML("
       .header {
-        background-color: #3c8dbc;
-        color: white;
+        /*background-color: #3c8dbc;*/
+        color: black;
         padding: 10px;
         margin-bottom: 15px;
       }
@@ -84,6 +92,34 @@ ui <- fluidPage(
       .nav-tabs {
         margin-bottom: 15px;
       }
+      #navbar {
+        background-color: #3c8dbc;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 20px;
+        color: black;
+        
+      }
+      #navbar a {
+        margin: 0 10px;
+        color: white;
+        flex-grow:1;
+        text-align:center;
+        
+      }
+      .clickable-header:hover {
+        background-color: #e9ecef;
+      }
+      
+      .dt-clickable {
+        cursor: pointer;
+      }
+      
+      .selected-column {
+        background-color: #e2f0fb !important;
+      }
+
     ")),
     tags$script(HTML("
       $(document).ready(function(){
@@ -102,6 +138,33 @@ ui <- fluidPage(
           // Custom event to capture selection
           $(document).trigger('tableRowSelected', [$(this).data('year')]);
         });
+      });
+      
+      // table selection
+      $(document).on('click', 'table.report_table thead th', function() {
+        var table = $(this).closest('table').DataTable();
+        var colIdx = table.column($(this)).index();
+        if (colIdx !== undefined) {
+          Shiny.setInputValue('datatable_columns_selected', colIdx);
+        }
+      });
+      
+      //
+      Shiny.addCustomMessageHandler('resetTableFilter', function(message) {
+        if(message) {
+          // Clear all opacity settings on plot
+          var graphDiv = document.getElementById('report_plot-report_plot');
+          if(graphDiv) {
+            Plotly.restyle(graphDiv, {'marker.opacity': 1});
+          }
+          
+          // Reset any table filtering if a DataTable API is available
+          if(typeof $.fn.dataTable !== 'undefined') {
+            $('.dataTable').each(function(){
+              $(this).DataTable().search('').columns().search('').draw();
+            });
+          }
+        }
       });
     "))
   ),
@@ -122,7 +185,7 @@ ui <- fluidPage(
   ),
   
   # Navigation menu
-  navbarPage("", id = "navbar",
+  navbarPage("", id = "navbar", 
              tabPanel("Home", icon = icon("home")),
              tabPanel("Search", icon = icon("search")),
              tabPanel("Disclaimer", icon = icon("info-circle")),
@@ -135,65 +198,43 @@ ui <- fluidPage(
   div(id = "main-content",
       # This will be shown/hidden based on disclaimer acceptance
       hidden(div(id = "dashboard-content",
-                 fluidRow(
-                   column(4,
+                      fluidRow(
+                   column(8,
                           div(class = "summary-box total-reports",
                               h4("Total Reports"),
-                              textOutput("total_reports_count")
-                          )
-                   ),
+                              dataframeTextUI("my_data"))),
                    column(4,
-                          div(class = "summary-box serious-reports",
-                              h4("Serious Reports (excluding death)"),
-                              textOutput("serious_reports_count")
-                          )
-                   ),
-                   column(4,
-                          div(class = "summary-box death-reports",
-                              h4("Death Reports"),
-                              textOutput("death_reports_count")
-                          )
+                          selectInput(
+                            "report_filter_type", "Reports by", 
+                            choices = c("Reports by Report Type", 
+                                        "Reports by Reporter", 
+                                        "Reports by Reporter Region", 
+                                        "Reports by Report Seriousness", 
+                                        "Reports by Age Group", 
+                                        "Reports by Sex"),
+                            selected = "Reports by Report Type",
+                            width = "100%")
                    )
                  ),
                  
-                 fluidRow(
-                   column(12,
-                          selectInput("report_filter_type", "Reports by", 
-                                      choices = c("Reports by Report Type", 
-                                                  "Reports by Reporter", 
-                                                  "Reports by Reporter Region", 
-                                                  "Reports by Report Seriousness", 
-                                                  "Reports by Age Group", 
-                                                  "Reports by Sex"),
-                                      selected = "Reports by Report Type",
-                                      width = "100%")
-                   )
-                 ),
-                 
-                 fluidRow(
-                   column(12,
-                          div(class = "btn-group", style = "margin-bottom: 15px;",
-                              actionButton("all_years_btn", "All Years", class = "btn-primary"),
-                              actionButton("last_10_years_btn", "Last 10 Years", class = "btn-default")
-                          )
-                   )
-                 ),
-                 
+                 # fluidRow(
+                 #   column(12,
+                 #          div(class = "btn-group", style = "margin-bottom: 15px;",
+                 #              actionButton("all_years_btn", "All Years", class = "btn-primary"),
+                 #              actionButton("last_10_years_btn", "Last 10 Years", class = "btn-default")
+                 #          )
+                 #   )
+                 # ),
                  fluidRow(
                    column(12, h4("Reports received by Report Type"))
                  ),
                  
                  fluidRow(
-                   column(4, 
-                          div(class = "year-filter",
-                              selectInput("year_filter", "Year", choices = NULL)
-                          ),
-                          div(class = "report-type-filter",
-                              selectInput("report_type_filter", "Report Type", choices = NULL)
-                          ),
+                   column(6, 
                           reportTableOutput("report_table")
                    ),
-                   column(8, reportPlotOutput("report_plot"))
+                   column(6, 
+                          reportPlotOutput("report_plot"))
                  )
       )),
       
@@ -222,136 +263,33 @@ server <- function(input, output, session) {
   # Disclaimer logic
   disclaimer_accepted <- disclaimerServer("disclaimer")
   
-  # Data handling
-  report_data <- reactive({
-    # This would typically load from a file or database
-    # For now we'll create mock data based on the screenshots
-    req(disclaimer_accepted())
-    
-    years <- 2009:2024
-    
-    data <- data.frame(
-      Year = rep(years, each = 4),
-      ReportType = rep(c("Expedited", "Non-Expedited", "Direct", "BSR"), times = length(years)),
-      Count = c(
-        # Mock data for each year and report type
-        # 2009
-        330083, 126159, 34166, 0,
-        # 2010
-        409063, 234633, 28944, 0,
-        # 2011
-        498420, 255165, 28042, 0,
-        # 2012
-        574943, 326224, 29012, 0,
-        # 2013
-        631158, 409045, 28390, 0,
-        # 2014
-        741482, 422721, 34230, 0,
-        # 2015
-        833112, 845020, 41659, 0,
-        # 2016
-        863270, 769112, 50991, 0,
-        # 2017
-        941777, 801203, 62030, 0,
-        # 2018
-        1155290, 897308, 87551, 0,
-        # 2019
-        1215941, 854855, 105388, 0,
-        # 2020
-        1242171, 882083, 78560, 0,
-        # 2021
-        1387985, 868056, 72549, 0,
-        # 2022
-        1308258, 950762, 78079, 0,
-        # 2023
-        1248041, 837783, 68631, 0,
-        # 2024
-        1168649, 815057, 58123, 0
-      )
-    )
-    
-    # Add totals
-    data_summarized <- data %>%
-      group_by(Year) %>%
-      summarize(TotalReports = sum(Count)) %>%
-      ungroup()
-    
-    # Create a lookup for serious and death counts
-    serious_counts <- data.frame(
-      Year = years,
-      SeriousReports = c(200000, 250000, 300000, 350000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000, 1100000, 1200000, 1300000, 1350000, 1372823),
-      DeathReports = c(20000, 30000, 40000, 45000, 50000, 60000, 70000, 80000, 90000, 100000, 150000, 180000, 200000, 220000, 250000, 262500)
-    )
-    
-    # Combine all data
-    full_data <- data %>%
-      left_join(data_summarized, by = "Year") %>%
-      left_join(serious_counts, by = "Year")
-    
-    # Return the data
-    return(full_data)
+  #
+  # Data loading based on selected report type
+  selected_report_type <- reactive({
+    input$report_filter_type
   })
-  
+  #
+  # Load data based on report type
+  report_data <- dataLoaderServer("data_loader", selected_report_type)
+  #
+  dataframeTextServer("my_data", report_data$totals_data)
   # Update UI based on disclaimer acceptance
   observeEvent(disclaimer_accepted(), {
     if (disclaimer_accepted()) {
       show("dashboard-content")
-      
-      # Initialize filters
-      updateSelectInput(session, "year_filter",
-                        choices = c("All", sort(unique(report_data()$Year), decreasing = TRUE)))
-      
-      updateSelectInput(session, "report_type_filter",
-                        choices = c("All", unique(report_data()$ReportType)))
     } else {
       hide("dashboard-content")
     }
   })
-  
-  # Summary statistics
-  output$total_reports_count <- renderText({
-    format(sum(unique(report_data()$TotalReports)), big.mark = ",")
-  })
-  
-  output$serious_reports_count <- renderText({
-    format(max(report_data()$SeriousReports), big.mark = ",")
-  })
-  
-  output$death_reports_count <- renderText({
-    format(max(report_data()$DeathReports), big.mark = ",")
-  })
-  
-  # Table and plot modules
-  filtered_data <- reactive({
-    req(report_data())
-    data <- report_data()
-    
-    if (input$year_filter != "All") {
-      data <- data %>% filter(Year == as.numeric(input$year_filter))
-    }
-    
-    if (input$report_type_filter != "All") {
-      data <- data %>% filter(ReportType == input$report_type_filter)
-    }
-    
-    return(data)
-  })
-  
-  reportTableServer("report_table", filtered_data)
-  reportPlotServer("report_plot", filtered_data)
-  
-  # Handle year range selection
-  observeEvent(input$all_years_btn, {
-    updateSelectInput(session, "year_filter", selected = "All")
-  })
-  
-  observeEvent(input$last_10_years_btn, {
-    # Get the most recent 10 years
-    recent_years <- sort(unique(report_data()$Year), decreasing = TRUE)[1:10]
-    updateSelectInput(session, "year_filter", 
-                     choices = c("All", sort(unique(report_data()$Year), decreasing = TRUE)),
-                     selected = "All")
-  })
+  #
+  bar_results = reportPlotServer("report_plot", 
+                                 report_data$yearly_data, 
+                                 selected_categories = reactive(NULL))
+  #
+  reportTableServer("report_table", 
+                    report_data$yearly_data, 
+                    selected_categories = bar_results$selected_categories)
+  #
 }
 
 # Run the application

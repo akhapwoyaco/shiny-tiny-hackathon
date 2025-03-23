@@ -4,62 +4,196 @@
 reportPlotUI <- function(id) {
   ns <- NS(id)
   tagList(
-    plotlyOutput(ns("report_plot"), height = "600px")
+    tags$div(
+      class = "panel panel-default",
+      style = "padding: 15px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 15px;",
+    plotlyOutput(ns("report_plot"), height = "600px"),
+    tags$div(
+      style = "margin-top: 10px;",
+      actionButton(ns("resetSelection"), "Reset Selection", 
+                   class = "btn-sm btn-info")
+    )
+    )
   )
 }
 
-
 # Server Function
-reportPlotServer <- function(id, data) {
+reportPlotServer <- function(id, data, selected_categories = reactive(NULL)) {
   moduleServer(
     id,
     function(input, output, session) {
+      
+      # Store the currently selected categories
+      current_selections <- reactiveVal(NULL)
+      
+      # Observe external selection changes
+      observeEvent(selected_categories(), {
+        if (!is.null(selected_categories()) && length(selected_categories()) > 0) {
+          current_selections(selected_categories())
+        }
+      })
+      
+      # Reset selection when button is clicked
+      observeEvent(input$resetSelection, {
+        current_selections(NULL)
+        # send empty selection for clearing
+        session$sendCustomMessage(type = 'resetTableFilter', message = TRUE)
+      })
+      
       # Create the plot
-      output$report_plot <- renderPlotly({
+      summarized_data <- reactive({
         req(data())
         
-        # Prepare data for plotting
-        plot_data <- data() %>%
-          select(Year, ReportType, Count) %>%
-          filter(ReportType %in% c("Expedited", "Non-Expedited", "Direct", "BSR")) %>%
-          mutate(Year = as.factor(Year)) %>%
-          arrange(Year, ReportType)
+        # Reshape to wide format
+        wide_data <- data() |>
+          tidyr::pivot_longer(
+            cols = !Year,
+            names_to = "ReportType",
+            values_to = "Count"
+          ) |>
+          dplyr::filter(!grepl("^Total", ReportType))
+        #
+        return(wide_data)
+      })
+      #
+      output$report_plot <- renderPlotly({
+        req(summarized_data())
         
-        # Create color mapping
-        color_mapping <- c(
-          "Expedited" = "#d9534f",
-          "Non-Expedited" = "#5cb85c",
-          "Direct" = "#5bc0de",
-          "BSR" = "#f0ad4e"
-        )
+        # Prepare data for plotting
+        plot_data <- summarized_data() |>
+          select(Year, ReportType, Count) |>
+          mutate(Year = as.numeric(Year)) |>
+          arrange(Year, ReportType)
         
         # Create the plot
         p <- ggplot(plot_data, aes(x = Year, y = Count, fill = ReportType)) +
           geom_bar(stat = "identity", position = "stack") +
-          scale_fill_manual(values = color_mapping) +
-          labs(title = "Reports received by Report Type",
-               y = "Report Count",
+          scale_fill_brewer(palette = "Dark2") +
+          labs(
+               y = "Count",
                x = "") +
           theme_minimal() +
           theme(
+            axis.title = element_blank(),
             axis.text.x = element_text(angle = 45, hjust = 1),
             legend.position = "top",
-            plot.title = element_text(hjust = 0.5)
+            legend.title = element_blank(),
+            plot.title = element_blank()
           )
-        
+
         # Convert to plotly
-        ggplotly(p, tooltip = c("x", "y", "fill")) %>%
+        p = ggplotly(p, tooltip = c("x", "y", "fill")) |>
           layout(
+            barmode = "stack",
             hovermode = "closest",
+            showlegend = TRUE,
             margin = list(b = 100, l = 80, r = 40, t = 50),
-            legend = list(orientation = "h", y = 1.1)
+            legend = list(orientation = "h", xanchor = "center", x = 0.5, y = -0.2)
           )
+        #
+        # Add custom JavaScript for interactivity
+        p <- p |> onRender(paste0("
+        function(el, x) {
+          var graphDiv = el;
+          var currentSelections = ", toJSON(current_selections()), ";
+          
+          // Initialize opacities based on current selections
+          if (currentSelections && currentSelections.length > 0) {
+            var traces = graphDiv.data;
+            var allOpacities = [];
+            
+            for (var i = 0; i < traces.length; i++) {
+              var traceOpacities = [];
+              for (var j = 0; j < traces[i].x.length; j++) {
+                traceOpacities.push(currentSelections.includes(traces[i].x[j]) ? 1 : 0.3);
+              }
+              allOpacities.push(traceOpacities);
+            }
+            
+            Plotly.restyle(graphDiv, {'marker.opacity': allOpacities});
+          }
+          
+          // Add click event listener
+          el.on('plotly_click', function(data) {
+            if (!data || !data.points || data.points.length === 0) return;
+            
+            var selectedCategory = data.points[0].x;
+            var currentSelections = [];
+            
+            // Get current selections from marker opacities
+            var traces = graphDiv.data;
+            if (traces[0].marker && traces[0].marker.opacity && Array.isArray(traces[0].marker.opacity)) {
+              for (var j = 0; j < traces[0].x.length; j++) {
+                if (traces[0].marker.opacity[j] === 1) {
+                  currentSelections.push(traces[0].x[j]);
+                }
+              }
+            } else {
+              // If no opacity settings, get all categories
+              for (var j = 0; j < traces[0].x.length; j++) {
+                currentSelections.push(traces[0].x[j]);
+              }
+            }
+
+            
+            // Toggle the selected category
+            var index = currentSelections.indexOf(selectedCategory);
+            if (index > -1) {
+                currentSelections.splice(index, 1); // Remove if already selected
+            } else {
+                currentSelections.push(selectedCategory); // Add if not selected
+            }
+            
+            // If nothing is selected after toggle, select everything
+            if (currentSelections.length === 0) {
+              for (var j = 0; j < traces[0].x.length; j++) {
+                currentSelections.push(traces[0].x[j]);
+              }
+            }
+            
+            // Update opacities based on selections
+            var allOpacities = [];
+            for (var i = 0; i < traces.length; i++) {
+              var traceOpacities = [];
+              for (var j = 0; j < traces[i].x.length; j++) {
+                traceOpacities.push(currentSelections.includes(traces[i].x[j]) ? 1 : 0.3);
+              }
+              allOpacities.push(traceOpacities);
+            }
+            
+            Plotly.restyle(graphDiv, {'marker.opacity': allOpacities});
+            
+            // Send selection to Shiny
+            Shiny.setInputValue('", session$ns("bar_selection"), "', currentSelections);
+          });
+          
+          // Reset on double click
+          el.on('plotly_doubleclick', function() {
+            var traces = graphDiv.data;
+            var allSelections = [];
+            for (var j = 0; j < traces[0].x.length; j++) {
+              allSelections.push(traces[0].x[j]);
+            }
+            Plotly.restyle(graphDiv, {'marker.opacity': 1});
+            Shiny.setInputValue('", session$ns("bar_selection"), "', allSelections);
+          });
+        }
+      "))
+        
+        return(p)
       })
+      # Return reactive list with selections
+      return(list(
+        selected_categories = reactive({
+          if (!is.null(input$bar_selection)) {
+            return(input$bar_selection)
+          } else {
+            return(current_selections())
+          }
+        })
+      ))
+      #
     }
   )
 }
-# Output function
-reportPlotOutput <- function(id) {
-  ns <- NS(id)
-  reportPlotUI(id)
-}
+

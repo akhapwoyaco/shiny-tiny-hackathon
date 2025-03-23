@@ -4,44 +4,33 @@
 reportTableUI <- function(id) {
   ns <- NS(id)
   tagList(
-    DT::DTOutput(ns("report_table"))
+    tags$div(
+      #style = "padding: 15px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 15px;",
+      DT::DTOutput(ns("report_table"))
+    )
   )
 }
 
 # Server Function
-reportTableServer <- function(id,data) {
+reportTableServer <- function(id,data, selected_categories = reactive(NULL)) {
   moduleServer(
     id,
     function(input, output, session) {
-      # Create summary table
-      summarized_data <- reactive({
-        req(data())
-        
-        # Summarize data by year and report type
-        summary_data <- data() %>%
-          group_by(Year, ReportType) %>%
-          summarize(Count = sum(Count), .groups = "drop") %>%
-          ungroup()
-        
-        # Get total by year
-        year_totals <- summary_data %>%
-          group_by(Year) %>%
-          summarize(TotalReports = sum(Count), .groups = "drop")
-        
-        # Reshape to wide format
-        wide_data <- summary_data %>%
-          pivot_wider(
-            id_cols = Year,
-            names_from = ReportType,
-            values_from = Count,
-            values_fill = 0
-          ) %>%
-          left_join(year_totals, by = "Year") %>%
-          arrange(desc(Year))
-        
-        return(wide_data)
-      })
+      #
+      # Store selected table columns
+      selected_cols <- reactiveVal(NULL)
       
+      # Create aggregated data table
+      summarized_data <- reactive({
+        print(selected_categories())
+        if (!is.null(selected_categories()) && length(selected_categories()) > 0) {
+          data() |>
+            filter(Year %in% selected_categories())
+        } else {
+          data()
+        }
+      })
+      #
       # Render the table
       output$report_table <- DT::renderDT({
         req(summarized_data())
@@ -52,42 +41,59 @@ reportTableServer <- function(id,data) {
         # Create formatted table
         datatable(
           display_data,
+          
           options = list(
-            pageLength = 10,
-            searching = FALSE,
+            pageLength = 70,
+            autoWidth = TRUE,
+            
+            searching = !FALSE,
             dom = 't',
-            ordering = FALSE
+            ordering = FALSE,
+            
+            columnDefs = list(
+              list(className = 'dt-center dt-clickable', targets = "_all")
+            ),
+            drawCallback = JS("
+              function(settings) {
+                $(this).find('thead th').addClass('clickable-header').css('cursor', 'pointer');
+              }
+            ")
           ),
+          selection = "none",
           rownames = FALSE,
-          selection = "multiple",
-          class = "data-table"
-        ) %>%
+          extensions = 'Buttons',
+          class = "compact stripe hover",
+          callback = JS("
+            table.on('click', 'thead th', function() {
+              var colIdx = table.column(this).index();
+              Shiny.setInputValue('datatable_columns_selected', colIdx);
+            });
+          ")
+        ) |>
           formatStyle(
             columns = colnames(display_data),
             backgroundColor = "#f8f9fa",
             borderBottom = "1px solid #ddd"
-          ) %>%
-          formatRound(
-            columns = colnames(display_data)[-1],  # Exclude Year column
-            digits = 0
-          ) %>%
-          formatCurrency(
-            columns = colnames(display_data)[-1],  # Exclude Year column
-            currency = "",
-            mark = ",",
-            digits = 0
           )
       })
       
-      # Return selected years
-      return(reactive({
-        input$report_table_rows_selected
-      }))
+      #
+      # Handle column header clicks with custom JS
+      observeEvent(input$dataTable_columns_selected, {
+        cols <- input$dataTable_columns_selected
+        if (length(cols) > 0) {
+          col_names <- colnames(filtered_data())[cols]
+          selected_cols(col_names)
+        }
+      })
+      
+      # Return selected columns
+      return(reactive(selected_cols()))
+      #
     }
   )
 }
-# Output function
-reportTableOutput <- function(id) {
-  ns <- NS(id)
-  reportTableUI(id)
-}
+
+
+
+
