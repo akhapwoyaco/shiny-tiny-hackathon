@@ -1,0 +1,93 @@
+.header {
+  /*background-color: #3c8dbc;*/
+  color: black;
+  padding: 10px;
+  margin-bottom: 15px;
+}
+
+.footer {
+  border-top: 1px solid #ddd;
+  padding: 10px;
+  margin-top: 15px;
+  font-size: 12px;
+}
+
+.dashboard-container {
+  margin-top: 20px;
+}
+
+.summary-box {
+  text-align: center;
+  padding: 15px;
+  margin-bottom: 15px;
+  border-radius: 5px;
+}
+
+.total-reports {
+  background-color: #f8f9fa;
+  border: 1px solid #ddd;
+}
+
+.serious-reports {
+  background-color: #fff3cd;
+  border: 1px solid #ffeeba;
+}
+
+.death-reports {
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+}
+
+#disclaimer-message {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.btn-primary {
+  background-color: #3c8dbc;
+}
+
+.disclaimer-footer {
+  margin-top: 15px;
+  text-align: right;
+}
+
+.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.year-filter, .report-type-filter {
+  margin-bottom: 15px;
+}
+
+.nav-tabs {
+  margin-bottom: 15px;
+}
+#navbar {
+  background-color: #3c8dbc;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  color: black;
+  
+}
+#navbar a {
+  margin: 0 10px;
+  color: white;
+  flex-grow:1;
+  text-align:center;
+  
+}
+.clickable-header:hover {
+  background-color: #e9ecef;
+}
+
+.dt-clickable {
+  cursor: pointer;
+}
+
+.selected-column {
+  background-color: #e2f0fb !important;
+}

@@ -22,7 +22,7 @@ reportTableServer <- function(id,data, selected_categories = reactive(NULL)) {
       
       # Create aggregated data table
       summarized_data <- reactive({
-        print(selected_categories())
+        # print(selected_categories())
         if (!is.null(selected_categories()) && length(selected_categories()) > 0) {
           data() |>
             filter(Year %in% selected_categories())
@@ -43,38 +43,28 @@ reportTableServer <- function(id,data, selected_categories = reactive(NULL)) {
           display_data,
           
           options = list(
-            pageLength = 70,
+            pageLength = 10,
             autoWidth = TRUE,
-            
-            searching = !FALSE,
-            dom = 't',
-            ordering = FALSE,
-            
             columnDefs = list(
               list(className = 'dt-center dt-clickable', targets = "_all")
             ),
             drawCallback = JS("
-              function(settings) {
-                $(this).find('thead th').addClass('clickable-header').css('cursor', 'pointer');
-              }
-            ")
+            function(settings) {
+              $(this).find('thead th').addClass('clickable-header').css('cursor', 'pointer');
+            }
+          ")
           ),
           selection = "none",
           rownames = FALSE,
           extensions = 'Buttons',
           class = "compact stripe hover",
           callback = JS("
-            table.on('click', 'thead th', function() {
-              var colIdx = table.column(this).index();
-              Shiny.setInputValue('datatable_columns_selected', colIdx);
-            });
-          ")
-        ) |>
-          formatStyle(
-            columns = colnames(display_data),
-            backgroundColor = "#f8f9fa",
-            borderBottom = "1px solid #ddd"
-          )
+          table.on('click', 'thead th', function() {
+            var colIdx = table.column(this).index();
+            Shiny.setInputValue('datatable_columns_selected', colIdx);
+          });
+        ")
+        ) 
       })
       
       #

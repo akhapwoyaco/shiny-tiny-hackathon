@@ -6,5 +6,7 @@ V1/
 V2/
 */V1/
 */V2/
+*/V3/
+*/V4/
 # {shinytest2}: Ignore new debug snapshots for `$expect_values()`
 *_.new.png

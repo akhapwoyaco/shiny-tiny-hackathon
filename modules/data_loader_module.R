@@ -61,7 +61,7 @@ dataLoaderServer <- function(id, report_type) {
         # Extract the part after "Reports by"
         file_suffix <- gsub("Reports by ", "", selected_type)
         
-        print(file_suffix)
+        # print(file_suffix)
         
         # Convert to snake case for filename
         file_name <- tolower(gsub(" ", "_", file_suffix))

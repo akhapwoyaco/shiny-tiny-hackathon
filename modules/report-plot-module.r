@@ -18,7 +18,7 @@ reportPlotUI <- function(id) {
 }
 
 # Server Function
-reportPlotServer <- function(id, data, selected_categories = reactive(NULL)) {
+reportPlotServer <- function(id, data, selected_categories = reactive(NULL), selected_columns = reactive(NULL)) {
   moduleServer(
     id,
     function(input, output, session) {
@@ -40,6 +40,24 @@ reportPlotServer <- function(id, data, selected_categories = reactive(NULL)) {
         session$sendCustomMessage(type = 'resetTableFilter', message = TRUE)
       })
       
+      #
+      # Store the currently selected metric columns
+      selected_metrics <- reactive({
+        req(data())
+        # Default to all metric columns except TotalRevenue and Region
+        all_cols <- setdiff(colnames(data()), c("Year", "Total Reports"))
+        
+        # If column selection exists, use it
+        if (!is.null(selected_columns()) && length(selected_columns()) > 0) {
+          metric_cols <- intersect(selected_columns(), all_cols)
+          if (length(metric_cols) > 0) {
+            return(metric_cols)
+          }
+        }
+        # print(all_cols)
+        return(all_cols)
+      })
+      #
       # Create the plot
       summarized_data <- reactive({
         req(data())
@@ -95,30 +113,14 @@ reportPlotServer <- function(id, data, selected_categories = reactive(NULL)) {
         p <- p |> onRender(paste0("
         function(el, x) {
           var graphDiv = el;
-          var currentSelections = ", toJSON(current_selections()), ";
-          
-          // Initialize opacities based on current selections
-          if (currentSelections && currentSelections.length > 0) {
-            var traces = graphDiv.data;
-            var allOpacities = [];
-            
-            for (var i = 0; i < traces.length; i++) {
-              var traceOpacities = [];
-              for (var j = 0; j < traces[i].x.length; j++) {
-                traceOpacities.push(currentSelections.includes(traces[i].x[j]) ? 1 : 0.3);
-              }
-              allOpacities.push(traceOpacities);
-            }
-            
-            Plotly.restyle(graphDiv, {'marker.opacity': allOpacities});
-          }
+          var currentSelections = [];
           
           // Add click event listener
           el.on('plotly_click', function(data) {
             if (!data || !data.points || data.points.length === 0) return;
             
             var selectedCategory = data.points[0].x;
-            var currentSelections = [];
+            
             
             // Get current selections from marker opacities
             var traces = graphDiv.data;
@@ -128,13 +130,7 @@ reportPlotServer <- function(id, data, selected_categories = reactive(NULL)) {
                   currentSelections.push(traces[0].x[j]);
                 }
               }
-            } else {
-              // If no opacity settings, get all categories
-              for (var j = 0; j < traces[0].x.length; j++) {
-                currentSelections.push(traces[0].x[j]);
-              }
-            }
-
+            } 
             
             // Toggle the selected category
             var index = currentSelections.indexOf(selectedCategory);
@@ -144,13 +140,12 @@ reportPlotServer <- function(id, data, selected_categories = reactive(NULL)) {
                 currentSelections.push(selectedCategory); // Add if not selected
             }
             
-            // If nothing is selected after toggle, select everything
-            if (currentSelections.length === 0) {
-              for (var j = 0; j < traces[0].x.length; j++) {
-                currentSelections.push(traces[0].x[j]);
-              }
-            }
-            
+            // Reset on double click
+            el.on('plotly_doubleclick', function() {
+              Plotly.restyle(graphDiv, {'marker.opacity': 1});
+              Shiny.setInputValue('", session$ns("bar_selection"), "', null);
+            });
+         
             // Update opacities based on selections
             var allOpacities = [];
             for (var i = 0; i < traces.length; i++) {
@@ -166,17 +161,6 @@ reportPlotServer <- function(id, data, selected_categories = reactive(NULL)) {
             // Send selection to Shiny
             Shiny.setInputValue('", session$ns("bar_selection"), "', currentSelections);
           });
-          
-          // Reset on double click
-          el.on('plotly_doubleclick', function() {
-            var traces = graphDiv.data;
-            var allSelections = [];
-            for (var j = 0; j < traces[0].x.length; j++) {
-              allSelections.push(traces[0].x[j]);
-            }
-            Plotly.restyle(graphDiv, {'marker.opacity': 1});
-            Shiny.setInputValue('", session$ns("bar_selection"), "', allSelections);
-          });
         }
       "))
         
@@ -186,11 +170,13 @@ reportPlotServer <- function(id, data, selected_categories = reactive(NULL)) {
       return(list(
         selected_categories = reactive({
           if (!is.null(input$bar_selection)) {
-            return(input$bar_selection)
+            return(as.numeric(input$bar_selection))
           } else {
-            return(current_selections())
+            return(NULL)
           }
-        })
+          
+        }),
+        selected_metrics = selected_metrics
       ))
       #
     }

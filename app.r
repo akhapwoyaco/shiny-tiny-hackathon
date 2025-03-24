@@ -8,7 +8,8 @@ library(tidyr)
 library(ggplot2)
 library(plotly)
 library(tools)
-
+library(htmlwidgets)
+library(jsonlite)
 #
 
 #
@@ -19,108 +20,15 @@ source("modules/report-table-module.r")
 source("modules/report-plot-module.r")
 source("modules/data_loader_module.R")
 source("modules/less_module.R")
+source("modules/summary_statistics.R")
 source("global.R")
 
 # Define UI
 ui <- fluidPage(
   useShinyjs(),
+  includeCSS(path = file.path('www/css/main.css')),
   tags$head(
-    tags$style(HTML("
-      .header {
-        /*background-color: #3c8dbc;*/
-        color: black;
-        padding: 10px;
-        margin-bottom: 15px;
-      }
-      
-      .footer {
-        border-top: 1px solid #ddd;
-        padding: 10px;
-        margin-top: 15px;
-        font-size: 12px;
-      }
-      
-      .dashboard-container {
-        margin-top: 20px;
-      }
-      
-      .summary-box {
-        text-align: center;
-        padding: 15px;
-        margin-bottom: 15px;
-        border-radius: 5px;
-      }
-      
-      .total-reports {
-        background-color: #f8f9fa;
-        border: 1px solid #ddd;
-      }
-      
-      .serious-reports {
-        background-color: #fff3cd;
-        border: 1px solid #ffeeba;
-      }
-      
-      .death-reports {
-        background-color: #f8d7da;
-        border: 1px solid #f5c6cb;
-      }
-      
-      #disclaimer-message {
-        font-size: 14px;
-        line-height: 1.5;
-      }
-      
-      .btn-primary {
-        background-color: #3c8dbc;
-      }
-      
-      .disclaimer-footer {
-        margin-top: 15px;
-        text-align: right;
-      }
-      
-      .disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
-      
-      .year-filter, .report-type-filter {
-        margin-bottom: 15px;
-      }
-      
-      .nav-tabs {
-        margin-bottom: 15px;
-      }
-      #navbar {
-        background-color: #3c8dbc;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 20px;
-        color: black;
-        
-      }
-      #navbar a {
-        margin: 0 10px;
-        color: white;
-        flex-grow:1;
-        text-align:center;
-        
-      }
-      .clickable-header:hover {
-        background-color: #e9ecef;
-      }
-      
-      .dt-clickable {
-        cursor: pointer;
-      }
-      
-      .selected-column {
-        background-color: #e2f0fb !important;
-      }
-
-    ")),
+    # tags$style(HTML("")),
     tags$script(HTML("
       $(document).ready(function(){
         // Enable or disable accept button based on checkbox
@@ -197,46 +105,36 @@ ui <- fluidPage(
   # Main content
   div(id = "main-content",
       # This will be shown/hidden based on disclaimer acceptance
-      hidden(div(id = "dashboard-content",
-                      fluidRow(
-                   column(8,
-                          div(class = "summary-box total-reports",
-                              h4("Total Reports"),
-                              dataframeTextUI("my_data"))),
-                   column(4,
-                          selectInput(
-                            "report_filter_type", "Reports by", 
-                            choices = c("Reports by Report Type", 
-                                        "Reports by Reporter", 
-                                        "Reports by Reporter Region", 
-                                        "Reports by Report Seriousness", 
-                                        "Reports by Age Group", 
-                                        "Reports by Sex"),
-                            selected = "Reports by Report Type",
-                            width = "100%")
-                   )
-                 ),
-                 
-                 # fluidRow(
-                 #   column(12,
-                 #          div(class = "btn-group", style = "margin-bottom: 15px;",
-                 #              actionButton("all_years_btn", "All Years", class = "btn-primary"),
-                 #              actionButton("last_10_years_btn", "Last 10 Years", class = "btn-default")
-                 #          )
-                 #   )
-                 # ),
-                 fluidRow(
-                   column(12, h4("Reports received by Report Type"))
-                 ),
-                 
-                 fluidRow(
-                   column(6, 
-                          reportTableOutput("report_table")
-                   ),
-                   column(6, 
-                          reportPlotOutput("report_plot"))
-                 )
-      )),
+      hidden(
+        div(
+          id = "dashboard-content",
+          # dataframeTextUI("my_data")
+          
+          fluidRow(
+            column(8,
+                   selectInput(
+                     "report_filter_type", "Select Reports by", 
+                     choices = c("Reports by Report Type", 
+                                 "Reports by Reporter", 
+                                 "Reports by Reporter Region", 
+                                 "Reports by Report Seriousness", 
+                                 "Reports by Age Group", 
+                                 "Reports by Sex"),
+                     selected = "Reports by Report Type",
+                     width = "100%"),
+                   reportPlotUI("report_plot")
+            ),
+            column(4, summaryStatsUI("stats"))
+          ),
+          fluidRow(
+            column(12, h4("Reports received by Report Type: Click on Bar For Selection and De-selection of Data"))
+          ),
+          fluidRow(
+            column(12, 
+                   reportTableUI("report_table")
+            )
+          )
+        )),
       
       # Disclaimer modal will be handled by the disclaimer module
       disclaimerOutput("disclaimer")
@@ -272,7 +170,7 @@ server <- function(input, output, session) {
   # Load data based on report type
   report_data <- dataLoaderServer("data_loader", selected_report_type)
   #
-  dataframeTextServer("my_data", report_data$totals_data)
+  # dataframeTextServer("my_data", report_data$totals_data)
   # Update UI based on disclaimer acceptance
   observeEvent(disclaimer_accepted(), {
     if (disclaimer_accepted()) {
@@ -282,13 +180,39 @@ server <- function(input, output, session) {
     }
   })
   #
+  # Initialize the summary stats module with selections from both
+  summaryStatsServer("stats", 
+                     data = report_data$yearly_data,
+                     selected_years = bar_results$selected_categories,
+                     selected_metrics = bar_results$selected_metrics)
+  #
   bar_results = reportPlotServer("report_plot", 
                                  report_data$yearly_data, 
-                                 selected_categories = reactive(NULL))
+                                 selected_categories = reactive(NULL),
+                                 selected_columns = reactive(table_selections()))
   #
-  reportTableServer("report_table", 
-                    report_data$yearly_data, 
-                    selected_categories = bar_results$selected_categories)
+  table_selections = reportTableServer("report_table", 
+                                       report_data$yearly_data, 
+                                       selected_categories = bar_results$selected_categories)
+  #
+  # Handle table column header clicks
+  observeEvent(input$datatable_columns_selected, {
+    if (!is.null(input$datatable_columns_selected)) {
+      col_idx <- as.numeric(input$datatable_columns_selected)
+      
+      # Get column name from data table
+      all_cols <- colnames(data())
+      if (col_idx < length(all_cols)) {
+        col_name <- all_cols[col_idx + 1]  # +1 because JS is 0-indexed
+        
+        # Highlight the column in UI
+        runjs(paste0("
+          $('.dataTable thead th').removeClass('selected-column');
+          $('.dataTable thead th:eq(", input$datatable_columns_selected, ")').addClass('selected-column');
+        "))
+      }
+    }
+  })
   #
 }
 
