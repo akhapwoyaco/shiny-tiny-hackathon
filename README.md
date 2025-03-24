@@ -18,33 +18,6 @@ LInk: https://akhapwoyachris.shinyapps.io/appsilon_shiny_tiny_hackathon/
 - Year range selection (All Years vs Last 10 Years)
 - Responsive design for different screen sizes
 
-
-## Usage
-
-When you first launch the application, you'll see a disclaimer popup. You must check the "I have read and understand the disclaimer" box and click "Accept" to proceed to the dashboard.
-
-Once the disclaimer is accepted, you can:
-1. Select different report types from the dropdown menu
-2. Filter by year or report type
-3. Toggle between "All Years" and "Last 10 Years" views
-4. Click on table rows to highlight specific years
-5. Interact with the stacked bar chart to view details about specific report counts
-
-
-# FDA Adverse Events Reporting System (FAERS) Dashboard
-
-This Shiny application mimics the FDA's FAERS Public Dashboard, which displays information about adverse event reports received by the FDA for drugs and therapeutic biologic products.
-
-## Features
-
-- Disclaimer popup that must be accepted before viewing data
-- Summary statistics for total reports, serious reports, and death reports
-- Interactive data table with filtering capabilities
-- Stacked bar chart visualization that can be scrolled horizontally
-- Multiple filtering options through dropdown menus
-- Year range selection (All Years vs Last 10 Years)
-- Responsive design for different screen sizes
-
 ## Installation
 
 1. Clone this repository:
