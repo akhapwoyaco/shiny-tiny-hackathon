@@ -1,0 +1,13 @@
+name: appsilon_shiny_tiny_hackathon
+title: appsilon_shiny_tiny_hackathon
+username: akhapwoyachris
+account: akhapwoyachris
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 14319199
+bundleId: 9992188
+url: https://akhapwoyachris.shinyapps.io/appsilon_shiny_tiny_hackathon/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: .RData|.Rprofile|README.md|tests/testthat/setup-shinytest2.R|tests/testthat/unit-tests (3).r|tests/testthat.R|V2

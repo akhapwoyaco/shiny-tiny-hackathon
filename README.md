@@ -2,6 +2,12 @@
 
 This Shiny application mimics the FDA's FAERS Public Dashboard, which displays information about adverse event reports received by the FDA for drugs and therapeutic biologic products.
 
+
+## [APP](https://akhapwoyachris.shinyapps.io/appsilon_shiny_tiny_hackathon/) 
+
+LInk: https://akhapwoyachris.shinyapps.io/appsilon_shiny_tiny_hackathon/
+
+
 ## Features
 
 - Disclaimer popup that must be accepted before viewing data
