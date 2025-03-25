@@ -45,6 +45,16 @@ disclaimerServer <- function(id) {
     function(input, output, session) {
       ns <- session$ns
       
+      log <- function(message, level = "INFO") {
+        # Use our custom logger
+        custom_logger(message, level)
+        
+        new_log <- paste0(format(Sys.time(), "%H:%M:%S"), " [", level, "] ", message, "\n")
+      }
+      
+      #
+      log(paste("disclaimerServer-", id, "Initialization"), "INFO")
+      #
       # Track whether the disclaimer has been accepted
       disclaimer_status <- reactiveVal(FALSE)
       
@@ -52,17 +62,22 @@ disclaimerServer <- function(id) {
       showModal(disclaimerUI(session$ns(NULL)))
       
       # Enable accept button when checkbox is checked
-      # observe({
-      #   if (input$accept_check) {
-      #     removeClass("accept_btn", "disabled")
-      #   } else {
-      #     addClass("accept_btn", "disabled")
-      #   }
-      # })
-      
+      observeEvent(input$accept_check, {
+       
+        if (input$accept_check){
+          log(paste("disclaimerServer-", id, "Read Disclaimer Checkbox Checked"), "INFO")
+          removeClass(selector = paste(paste("#",id, sep = ''), "accept_btn", sep = "-"), class = "disabled")
+        } else {
+          log(paste("disclaimerServer-", id, "Read Disclaimer Checkbox Unchecked"), "WARN")
+          addClass(selector = paste(paste("#",id, sep = ''), "accept_btn", sep = "-"), class = "disabled")
+        }
+          
+      })
+      #
       # Handle accept button click
       observeEvent(input$accept_btn, {
         if (input$accept_check) {
+          log(paste("disclaimerServer-", id, "Accept Disclaimer"), "SUCCESS")
           removeModal()
           disclaimer_status(TRUE)
         }
@@ -72,7 +87,7 @@ disclaimerServer <- function(id) {
       observeEvent(input$do_not_accept_btn, {
         removeModal()
         disclaimer_status(FALSE)
-        
+        log(paste("disclaimerServer-", id, "Read Disclaimer REMOVED"), "WARN")
         # Show a message that the user needs to accept the disclaimer
         showModal(modalDialog(
           title = "Action Required",

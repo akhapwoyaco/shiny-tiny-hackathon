@@ -36,7 +36,7 @@ ui <- fluidPage(
           if($(this).is(':checked')) {
             $('#accept-btn').removeClass('disabled');
           } else {
-            $('#accept-btn').addClass('disabled');
+            $('#accept-btn').addClass ('disabled');
           }
         });
         
@@ -93,7 +93,7 @@ ui <- fluidPage(
   ),
   
   # Navigation menu
-  navbarPage("", id = "navbar", 
+  navbarPage(title = NULL,id = "navbar", 
              tabPanel("Home", icon = icon("home")),
              tabPanel("Search", icon = icon("search")),
              tabPanel("Disclaimer", icon = icon("info-circle")),
@@ -158,6 +158,15 @@ ui <- fluidPage(
 
 # Define server
 server <- function(input, output, session) {
+  
+  # logger
+  log <- function(message, level = "INFO") {
+    # Use our custom logger
+    custom_logger(message, level)
+  }
+  #
+  log(message = "Session Startup", level = "SUCCESS")
+  
   # Disclaimer logic
   disclaimer_accepted <- disclaimerServer("disclaimer")
   
@@ -173,6 +182,7 @@ server <- function(input, output, session) {
   # dataframeTextServer("my_data", report_data$totals_data)
   # Update UI based on disclaimer acceptance
   observeEvent(disclaimer_accepted(), {
+    log(message = "Update UI based on disclaimer acceptance", level = "SUCCESS")
     if (disclaimer_accepted()) {
       show("dashboard-content")
     } else {
@@ -212,6 +222,12 @@ server <- function(input, output, session) {
         "))
       }
     }
+  })
+  #
+  
+  # Track session end
+  session$onSessionEnded(function() {
+    log(message = "Session ended", level = "SUCCESS")
   })
   #
 }

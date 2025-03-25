@@ -63,7 +63,7 @@ faers-dashboard/
 │
 └── tests/                # Unit tests
     └── testthat/
-        └── test-modules.R  # Tests for the Shiny modules
+        └── disclaimer_test  # Tests for the Disclaimer Shiny module
 ```
 
 ## Usage

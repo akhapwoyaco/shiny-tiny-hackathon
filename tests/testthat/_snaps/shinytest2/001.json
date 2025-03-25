@@ -1,0 +1,16 @@
+{
+  "input": {
+    "disclaimer-accept_btn": 0,
+    "disclaimer-accept_check": false,
+    "disclaimer-do_not_accept_btn": 0,
+    "navbar": "Home",
+    "report_filter_type": "Reports by Report Type",
+    "report_plot-resetSelection": 0
+  },
+  "output": {
+
+  },
+  "export": {
+
+  }
+}

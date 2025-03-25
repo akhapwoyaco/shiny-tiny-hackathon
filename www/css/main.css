@@ -2,7 +2,7 @@
   /*background-color: #3c8dbc;*/
   color: black;
   padding: 10px;
-  margin-bottom: 15px;
+  margin-bottom: 1px;
 }
 
 .footer {
@@ -62,23 +62,29 @@
 }
 
 .nav-tabs {
-  margin-bottom: 15px;
+  margin-bottom: 2px;
 }
 #navbar {
   background-color: #3c8dbc;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 10px 20px;
+  padding-left: 0;
+  padding-right: 0;
   color: black;
+  width: 100%;
   
 }
 #navbar a {
-  margin: 0 10px;
-  color: white;
+  color: black;
   flex-grow:1;
   text-align:center;
   
+}
+.navbar-header {
+  display: none;
+}
+.navbar-brand {
+  display: none;
 }
 .clickable-header:hover {
   background-color: #e9ecef;
